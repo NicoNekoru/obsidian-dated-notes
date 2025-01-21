@@ -1,3 +1,11 @@
+import type moment from "moment";
+
+declare global {
+	interface Window {
+		moment: typeof moment;
+	}
+}
+
 import { App, Editor, MarkdownView, Modal, Notice, Plugin, PluginSettingTab, Setting } from 'obsidian';
 
 // Remember to rename these classes and interfaces!
@@ -16,66 +24,80 @@ export default class MyPlugin extends Plugin {
 	async onload() {
 		await this.loadSettings();
 
-		// This creates an icon in the left ribbon.
-		const ribbonIconEl = this.addRibbonIcon('dice', 'Sample Plugin', (evt: MouseEvent) => {
-			// Called when the user clicks the icon.
-			new Notice('This is a notice!');
-		});
-		// Perform additional things with the ribbon
-		ribbonIconEl.addClass('my-plugin-ribbon-class');
-
-		// This adds a status bar item to the bottom of the app. Does not work on mobile apps.
-		const statusBarItemEl = this.addStatusBarItem();
-		statusBarItemEl.setText('Status Bar Text');
-
-		// This adds a simple command that can be triggered anywhere
 		this.addCommand({
-			id: 'open-sample-modal-simple',
-			name: 'Open sample modal (simple)',
-			callback: () => {
-				new SampleModal(this.app).open();
-			}
-		});
-		// This adds an editor command that can perform some operation on the current editor instance
-		this.addCommand({
-			id: 'sample-editor-command',
-			name: 'Sample editor command',
-			editorCallback: (editor: Editor, view: MarkdownView) => {
-				console.log(editor.getSelection());
-				editor.replaceSelection('Sample Editor Command');
-			}
-		});
-		// This adds a complex command that can check whether the current state of the app allows execution of the command
-		this.addCommand({
-			id: 'open-sample-modal-complex',
-			name: 'Open sample modal (complex)',
-			checkCallback: (checking: boolean) => {
-				// Conditions to check
-				const markdownView = this.app.workspace.getActiveViewOfType(MarkdownView);
-				if (markdownView) {
-					// If checking is true, we're simply "checking" if the command can be run.
-					// If checking is false, then we want to actually perform the operation.
-					if (!checking) {
-						new SampleModal(this.app).open();
-					}
+			id: 'dated-next-file',
+			name: 'Go to next file',
+			editorCallback: (_, ctx: MarkdownView) => {
+				const dateFormat = "YY-MM-DD";
+				const activeFile = ctx.app.workspace.getActiveFile()!;
 
-					// This command will only show up in Command Palette when the check function returns true
-					return true;
+				const targetDate = window.moment(activeFile.basename, dateFormat).toDate();
+
+				// Searching for the next largest date
+				let largerDate = null;
+				let largerFile = null;
+
+				for (const currentFile of activeFile.parent!.children)
+				{
+					// Only sort other markdown files
+					/* @ts-ignore */
+					if (currentFile.extension !== "md") continue;
+					/* @ts-ignore */
+					if (currentFile.basename === activeFile.basename) continue;
+
+					/* @ts-ignore */
+					const currentDate = window.moment(currentFile.basename, dateFormat).toDate();
+
+					if ( currentDate > targetDate &&
+						(!largerDate || currentDate < largerDate) 
+					) { largerDate = currentDate; largerFile = currentFile; }
 				}
-			}
+
+				if (!largerFile) return new Notice('No next file!')
+				
+				/* @ts-ignore */
+				ctx.app.workspace.activeLeaf.openFile(largerFile)
+			},
+		});
+
+		this.addCommand({
+			id: 'dated-prev-file',
+			name: 'Go to previous file',
+			editorCallback: (_, ctx: MarkdownView) => {
+				const dateFormat = "YY-MM-DD";
+				const activeFile = ctx.app.workspace.getActiveFile()!;
+
+				const targetDate = window.moment(activeFile.basename, dateFormat).toDate();
+
+				// Searching for the next largest date
+				let smallerDate = null;
+				let smallerFile = null;
+
+				for (const currentFile of activeFile.parent!.children)
+				{
+					// Only sort other markdown files
+					/* @ts-ignore */
+					if (currentFile.extension !== "md") continue;
+					/* @ts-ignore */
+					if (currentFile.basename === activeFile.basename) continue;
+
+					/* @ts-ignore */
+					const currentDate = window.moment(currentFile.basename, dateFormat).toDate();
+
+					if ( currentDate < targetDate &&
+						(!smallerDate || currentDate > smallerDate) 
+					) { smallerDate = currentDate; smallerFile = currentFile; }
+				}
+
+				if (!smallerFile) return new Notice('No previous file!')
+				
+				/* @ts-ignore */
+				ctx.app.workspace.activeLeaf.openFile(smallerFile)
+			},
 		});
 
 		// This adds a settings tab so the user can configure various aspects of the plugin
 		this.addSettingTab(new SampleSettingTab(this.app, this));
-
-		// If the plugin hooks up any global DOM events (on parts of the app that doesn't belong to this plugin)
-		// Using this function will automatically remove the event listener when this plugin is disabled.
-		this.registerDomEvent(document, 'click', (evt: MouseEvent) => {
-			console.log('click', evt);
-		});
-
-		// When registering intervals, this function will automatically clear the interval when the plugin is disabled.
-		this.registerInterval(window.setInterval(() => console.log('setInterval'), 5 * 60 * 1000));
 	}
 
 	onunload() {
