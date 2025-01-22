@@ -6,32 +6,53 @@ declare global {
 	}
 }
 
-import { App, Editor, MarkdownView, Modal, Notice, Plugin, PluginSettingTab, Setting } from 'obsidian';
+import { App, MarkdownView, Modal, Notice, Plugin, PluginSettingTab, Setting } from 'obsidian';
 
-// Remember to rename these classes and interfaces!
 
-interface MyPluginSettings {
-	mySetting: string;
+interface DatedSettings {
+	dateFormat: string;
 }
 
-const DEFAULT_SETTINGS: MyPluginSettings = {
-	mySetting: 'default'
+const DEFAULT_SETTINGS: DatedSettings = {
+	dateFormat: 'YY-MM-DD'
 }
 
-export default class MyPlugin extends Plugin {
-	settings: MyPluginSettings;
+export default class DatedPlugin extends Plugin {
+	settings: DatedSettings;
 
 	async onload() {
 		await this.loadSettings();
 
 		this.addCommand({
+			id: 'dated-create-file',
+			name: 'Create new file',
+			callback: async () => {
+				const activeFile = this.app.workspace.getActiveFile();
+				let fileRoot = ''
+
+				/* @ts-ignore */
+				if (!activeFile?.parent) { fileRoot = this.app.vault.adapter.basePath; }
+				else { fileRoot = activeFile.parent.path; }
+
+				const fileName = window.moment().format(this.settings.dateFormat);
+				const filePath = fileRoot + '/' + fileName + '.md';
+				let fileFile = this.app.vault.getFileByPath(filePath);
+
+				if (fileFile) new Notice('File already exists')
+				else fileFile = await this.app.vault.create(filePath, '');
+				
+				/* @ts-ignore */
+				this.app.workspace.activeLeaf.openFile(fileFile)
+			}
+		})
+
+		this.addCommand({
 			id: 'dated-next-file',
 			name: 'Go to next file',
 			editorCallback: (_, ctx: MarkdownView) => {
-				const dateFormat = "YY-MM-DD";
 				const activeFile = ctx.app.workspace.getActiveFile()!;
 
-				const targetDate = window.moment(activeFile.basename, dateFormat).toDate();
+				const targetDate = window.moment(activeFile.basename, this.settings.dateFormat).toDate();
 
 				// Searching for the next largest date
 				let largerDate = null;
@@ -46,7 +67,7 @@ export default class MyPlugin extends Plugin {
 					if (currentFile.basename === activeFile.basename) continue;
 
 					/* @ts-ignore */
-					const currentDate = window.moment(currentFile.basename, dateFormat).toDate();
+					const currentDate = window.moment(currentFile.basename, this.settings.dateFormat).toDate();
 
 					if ( currentDate > targetDate &&
 						(!largerDate || currentDate < largerDate) 
@@ -64,10 +85,9 @@ export default class MyPlugin extends Plugin {
 			id: 'dated-prev-file',
 			name: 'Go to previous file',
 			editorCallback: (_, ctx: MarkdownView) => {
-				const dateFormat = "YY-MM-DD";
 				const activeFile = ctx.app.workspace.getActiveFile()!;
 
-				const targetDate = window.moment(activeFile.basename, dateFormat).toDate();
+				const targetDate = window.moment(activeFile.basename, this.settings.dateFormat).toDate();
 
 				// Searching for the next largest date
 				let smallerDate = null;
@@ -82,7 +102,7 @@ export default class MyPlugin extends Plugin {
 					if (currentFile.basename === activeFile.basename) continue;
 
 					/* @ts-ignore */
-					const currentDate = window.moment(currentFile.basename, dateFormat).toDate();
+					const currentDate = window.moment(currentFile.basename, this.settings.dateFormat).toDate();
 
 					if ( currentDate < targetDate &&
 						(!smallerDate || currentDate > smallerDate) 
@@ -97,7 +117,7 @@ export default class MyPlugin extends Plugin {
 		});
 
 		// This adds a settings tab so the user can configure various aspects of the plugin
-		this.addSettingTab(new SampleSettingTab(this.app, this));
+		this.addSettingTab(new DatedSettingsTab(this.app, this));
 	}
 
 	onunload() {
@@ -113,26 +133,10 @@ export default class MyPlugin extends Plugin {
 	}
 }
 
-class SampleModal extends Modal {
-	constructor(app: App) {
-		super(app);
-	}
+class DatedSettingsTab extends PluginSettingTab {
+	plugin: DatedPlugin;
 
-	onOpen() {
-		const {contentEl} = this;
-		contentEl.setText('Woah!');
-	}
-
-	onClose() {
-		const {contentEl} = this;
-		contentEl.empty();
-	}
-}
-
-class SampleSettingTab extends PluginSettingTab {
-	plugin: MyPlugin;
-
-	constructor(app: App, plugin: MyPlugin) {
+	constructor(app: App, plugin: DatedPlugin) {
 		super(app, plugin);
 		this.plugin = plugin;
 	}
@@ -143,13 +147,13 @@ class SampleSettingTab extends PluginSettingTab {
 		containerEl.empty();
 
 		new Setting(containerEl)
-			.setName('Setting #1')
-			.setDesc('It\'s a secret')
+			.setName('Date Format')
+			.setDesc('Filename format')
 			.addText(text => text
-				.setPlaceholder('Enter your secret')
-				.setValue(this.plugin.settings.mySetting)
+				.setPlaceholder('YY-MM-DD')
+				.setValue(this.plugin.settings.dateFormat)
 				.onChange(async (value) => {
-					this.plugin.settings.mySetting = value;
+					this.plugin.settings.dateFormat = value;
 					await this.plugin.saveSettings();
 				}));
 	}
