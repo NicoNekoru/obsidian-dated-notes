@@ -1,3 +1,7 @@
+Super unfinished and jank. Might not ever finish -- works for me on the platforms I need while using deprecated and non-standard features. The `@ts-ignore`s are intended for now but not for tomorrow.
+
+<hr>
+
 # Obsidian Sample Plugin
 
 This is a sample plugin for Obsidian (https://obsidian.md).

@@ -6,7 +6,7 @@ declare global {
 	}
 }
 
-import { App, MarkdownView, Modal, Notice, Plugin, PluginSettingTab, Setting } from 'obsidian';
+import { App, MarkdownView, Notice, Plugin, PluginSettingTab, Setting } from 'obsidian';
 
 
 interface DatedSettings {
@@ -40,7 +40,7 @@ export default class DatedPlugin extends Plugin {
 
 				if (fileFile) new Notice('File already exists')
 				else fileFile = await this.app.vault.create(filePath, '');
-				
+
 				/* @ts-ignore */
 				this.app.workspace.activeLeaf.openFile(fileFile)
 			}
